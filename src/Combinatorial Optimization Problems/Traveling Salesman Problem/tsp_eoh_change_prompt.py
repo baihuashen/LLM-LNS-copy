@@ -18,6 +18,9 @@ from typing import Sequence, Tuple
 from joblib import Parallel, delayed
 from gls.gls_run import solve_instance
 
+from openai import OpenAI
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from selection import prob_rank, equal, roulette_wheel, tournament
 from management import pop_greedy, ls_greedy, ls_sa
 
@@ -306,7 +309,7 @@ class TSPGLS():
         self.ite_max = 1000 # Maximum number of local searches in GLS for each instance
         self.perturbation_moves = 1 # Moves of each edge in each perturbation
         #path = os.path.dirname(os.path.abspath(__file__)) # Kept commented as in original
-        self.instance_path = './tsplib' # ,instances=None,instances_name=None,instances_scale=None (Kept commented as in original)
+        self.instance_path = r"D:\课题组\LLM-LNS-copy\LLM-LNS\src\Combinatorial Optimization Problems\Traveling Salesman Problem\tsplib" # ,instances=None,instances_name=None,instances_scale=None (Kept commented as in original)
         self.debug_mode=False
 
         self.coords,self.instances,self.opt_costs,self.names = read_instance_all(self.instance_path)
@@ -410,24 +413,28 @@ class InterfaceAPI:
     def get_response(self, prompt_content):
         # Create a JSON formatted string payload_explanation, which includes the model name and message content.
         # This JSON will be used as the request payload.
-        payload_explanation = json.dumps(
-            {
-                # Specify the model to use.
-                "model": self.model_LLM,
-                # Message content, representing the user's input.
-                "messages": [
-                    # {"role": "system", "content": "You are a helpful assistant."}, # Kept commented as in original
-                    {"role": "user", "content": prompt_content}
-                ],
-            }
+        # payload_explanation = json.dumps(
+        #     {
+        #         # Specify the model to use.
+        #         "model": self.model_LLM,
+        #         # Message content, representing the user's input.
+        #         "messages": [
+        #             # {"role": "system", "content": "You are a helpful assistant."}, # Kept commented as in original
+        #             {"role": "user", "content": prompt_content}
+        #         ],
+        #     }
+        # )
+        # # Define request headers
+        # headers = {
+        #     "Authorization": "Bearer " + self.api_key,           # Contains API key for request authentication.
+        #     "User-Agent": "Apifox/1.0.0 (https://apifox.com)",   # Identifies client information for the request.
+        #     "Content-Type": "application/json",                  # Specifies request content type as JSON.
+        #     "x-api2d-no-cache": 1,                               # Custom header to control caching behavior.
+        # }
+        client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.api_endpoint,
         )
-        # Define request headers
-        headers = {
-            "Authorization": "Bearer " + self.api_key,           # Contains API key for request authentication.
-            "User-Agent": "Apifox/1.0.0 (https://apifox.com)",   # Identifies client information for the request.
-            "Content-Type": "application/json",                  # Specifies request content type as JSON.
-            "x-api2d-no-cache": 1,                               # Custom header to control caching behavior.
-        }
 
         response = None   # Initialize response variable to None
         n_trial = 0       # Initialize attempt count n_trial to 0
@@ -440,18 +447,28 @@ class InterfaceAPI:
             if n_trial > self.n_trial:
                 return response
             try:
-                # Create an HTTPS connection to the API endpoint
-                conn = http.client.HTTPSConnection(self.api_endpoint)
-                # Send a POST request to the /v1/chat/completions endpoint, passing the request payload and headers
-                conn.request("POST", "/v1/chat/completions", payload_explanation, headers)
-                # Get the response
-                res = conn.getresponse()
-                # Read the response content
-                data = res.read()
-                # Convert response content from JSON format to Python dictionary
-                json_data = json.loads(data)
-                # Extract actual model reply content from JSON response and store it in response variable
-                response = json_data["choices"][0]["message"]["content"]
+                # # Create an HTTPS connection to the API endpoint
+                # conn = http.client.HTTPSConnection(self.api_endpoint)
+                # # Send a POST request to the /v1/chat/completions endpoint, passing the request payload and headers
+                # conn.request("POST", "/v1/chat/completions", payload_explanation, headers)
+                # # Get the response
+                # res = conn.getresponse()
+                # # Read the response content
+                # data = res.read()
+                # # Convert response content from JSON format to Python dictionary
+                # json_data = json.loads(data)
+                # # Extract actual model reply content from JSON response and store it in response variable
+                # response = json_data["choices"][0]["message"]["content"]
+
+                completion = client.chat.completions.create(
+                    model=self.model_LLM,
+                    messages=[
+                        # {"role": "system", "content": "You are a helpful assistant."}, # Kept commented as in original
+                        {"role": "user", "content": prompt_content}
+                    ],
+                    extra_body={"enable_thinking":False}
+                )
+                response = completion.choices[0].message.content
                 break
             except Exception as e:
                 if self.debug_mode:  # If debug mode is enabled, output debug information.
@@ -1829,9 +1846,9 @@ paras = Paras()
 # Set parameters
 paras.set_paras(method = "eoh",    # ['ael','eoh']
                 problem = "tsp_construct", #['tsp_construct','bp_online']
-                llm_api_endpoint = "your_llm_endpoint", # Set your LLM endpoint
-                llm_api_key = "your_api_key",   # Set your key
-                llm_model = "gpt-4o-mini",
+                llm_api_endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1", # Set your LLM endpoint
+                llm_api_key = "sk-a71564afda844b889b4a46db1207dc7e",   # Set your key
+                llm_model = "qwen3-8b",
                 ec_pop_size = 4, # Number of samples in each population
                 ec_n_pop = 20,  # Number of populations
                 exp_n_proc = 8,  # Multi-core parallel
