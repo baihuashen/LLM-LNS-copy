@@ -68,6 +68,6 @@ def read_instance_all(instances_path):
 
 
 if __name__ == '__main__':
-    G,scale= read_instance_all('../TSPLib200/eil51.tsp')
+    G,scale= read_instance_all('../tsplip/eil51.tsp')
     print(G.edges[0,0]['weight'])
     print(scale)

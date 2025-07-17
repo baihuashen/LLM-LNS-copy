@@ -20,9 +20,9 @@ from gls.gls_run import solve_instance
 
 from openai import OpenAI
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from selection import prob_rank, equal, roulette_wheel, tournament
-from management import pop_greedy, ls_greedy, ls_sa
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+from src.selection import prob_rank, equal, roulette_wheel, tournament
+from src.management import pop_greedy, ls_greedy, ls_sa
 
 # Define some necessary classes
 class Paras():
@@ -309,7 +309,7 @@ class TSPGLS():
         self.ite_max = 1000 # Maximum number of local searches in GLS for each instance
         self.perturbation_moves = 1 # Moves of each edge in each perturbation
         #path = os.path.dirname(os.path.abspath(__file__)) # Kept commented as in original
-        self.instance_path = r"D:\课题组\LLM-LNS-copy\LLM-LNS\src\Combinatorial Optimization Problems\Traveling Salesman Problem\tsplib" # ,instances=None,instances_name=None,instances_scale=None (Kept commented as in original)
+        self.instance_path = r"D:\课题组\LLM-LNS-copy\LLM-LNS\src\Combinatorial Optimization Problems\Traveling Salesman Problem\tspdata_LLMLNStrain" # ,instances=None,instances_name=None,instances_scale=None (Kept commented as in original)
         self.debug_mode=False
 
         self.coords,self.instances,self.opt_costs,self.names = read_instance_all(self.instance_path)
@@ -692,6 +692,7 @@ class InterfaceEC_Prompt():
             'number': None
         }
         off_set = []
+        parents = None
         # Get initial prompt
         if operator == "initial_cross":
             prompt_list =  self.evol.initialize("cross")
@@ -993,8 +994,11 @@ The description must be inside a brace. Next, implement it in Python as a functi
 
         algorithm = algorithm[0]
         code = code[0]
+        
+        # 20250716 add by Mingen Kuang
+        code_all = code +" "+", ".join(s for s in self.prompt_func_outputs)
 
-        return [code, algorithm]
+        return [code_all, algorithm]
 
     def initial(self):
         ##################################################
@@ -1003,10 +1007,9 @@ The description must be inside a brace. Next, implement it in Python as a functi
 
         # Get prompt to help LLM create initial population
         prompt_content = self.get_prompt_initial()
-
         # In debug mode, output prompt to help LLM create initial population
         if self.debug_mode:
-            print("\n >>> Check prompt for creating algorithm using [ initial ] : \n", prompt_content )
+            print("\n >>> Check prompt for creating algorithm using [ initial ] : \n", prompt_content)
             print(">>> Press 'Enter' to continue")
             input()
 
@@ -1345,6 +1348,9 @@ class InterfaceEC():
         if operator == "initial":
             parents = None
             [offspring['code'],offspring['algorithm']] =  self.evol.initial()
+            #20250715debug添加
+            # print(f"Initial code: {offspring['code']}")
+            # print(f"algorithm:{offspring['algorithm']}")
         # Generate algorithms dissimilar to parents
         elif operator == "cross":
             parents = self.select.parent_selection(pop,self.m)
@@ -1422,20 +1428,24 @@ class InterfaceEC():
             # If after retries, code is still duplicated or None, signal failure
             if offspring['code'] is None or self.check_duplicate(pop, code):
                  raise ValueError("Failed to generate unique or valid code after retries.")
-
+            #20250715debug
+            # print(f"Code to evaluate:\n{code}")
             # Create thread pool: Use ThreadPoolExecutor to execute evaluation task
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 # Submit self.interface_eval.evaluate method for evaluation, passing the generated code code
                 future = executor.submit(self.interface_eval.evaluate, code)
                 # Get evaluation result fitness, round it to 5 decimal places, and store in offspring['objective']
                 fitness = future.result(timeout=self.timeout)
+                #20250715debug添加 打印适应度值看是否有问题
+                # print(f"Fitness value from evaluate: {fitness}, Type: {type(fitness)}")
                 offspring['objective'] = np.round(fitness, 5)
                 # Cancel task to release resources
                 future.cancel()
 
         # If an exception occurs, set offspring to a dictionary containing all None values, and set p to None
         except Exception as e:
-            # print(f"Error in get_offspring evaluation: {e}") # Debugging aid, kept commented as in original style
+            #20250715debug修改 把下面的注释打开，检查bug
+            #print(f"Error in get_offspring evaluation: {e}") # Debugging aid, kept commented as in original style
             offspring = {
                 'algorithm': None,
                 'code': None,
@@ -1445,6 +1455,9 @@ class InterfaceEC():
             p = None
 
         # Return parent individuals p and generated offspring individuals offspring
+        #20250715debug添加
+        #print (f"Generated offspring: {offspring}")
+        
         return p, offspring
 
     def get_algorithm(self, pop, operator, prompt):
@@ -1617,12 +1630,15 @@ class EOH:
             print("Variation Prompt:", prompt['prompt'])
         print("Initial prompt population has been created!")
 
-        print("=======================================")
+        print("=======================================")   
         population = []
         print("Creating initial population:")
         population = interface_ec.population_generation()
-        population = self.manage.population_management(population, self.pop_size)
-
+        # population = self.manage.population_management(population, self.pop_size)
+        #20250715 debug检查种群
+        # print("Initial poulation:")
+        # print(population)
+        #----------------------------------------
         print("Initial population objectives:")
         for off in population:
             print(" Obj:", off['objective'], end="|")
@@ -1856,6 +1872,7 @@ paras.set_paras(method = "eoh",    # ['ael','eoh']
 
 # Initialization
 evolution = EVOL(paras)
+
 
 # Run
 evolution.run()
