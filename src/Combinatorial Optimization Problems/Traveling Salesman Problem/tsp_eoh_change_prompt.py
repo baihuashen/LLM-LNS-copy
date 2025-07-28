@@ -304,7 +304,7 @@ class TSPGLS():
     ### Create a new TSP problem instance ###
     ###########################################
     def __init__(self) -> None:
-        self.n_inst_eva = 3 # A small value for test only
+        self.n_inst_eva = 5 # A small value for test only
         self.time_limit = 10 # Maximum 10 seconds for each instance
         self.ite_max = 1000 # Maximum number of local searches in GLS for each instance
         self.perturbation_moves = 1 # Moves of each edge in each perturbation
